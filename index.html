@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kurbanov Coffee</title>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts для стильного кофейного шрифта -->
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Comfortaa', cursive;
+            -webkit-tap-highlight-color: transparent; /* Убирает синюю рамку при тапе на iOS */
+        }
+        .serif-title {
+            font-family: 'Playfair Display', serif;
+        }
+        /* Кастомные анимации для пара над логотипом */
+        @keyframes steam {
+            0% { transform: translateY(0) scale(1); opacity: 0.2; filter: blur(1px); }
+            50% { transform: translateY(-5px) scale(1.1); opacity: 0.5; filter: blur(1.5px); }
+            100% { transform: translateY(-12px) scale(1.2); opacity: 0; filter: blur(2px); }
+        }
+        .steam-line {
+            animation: steam 2.5s infinite ease-out;
+        }
+        .steam-delay-1 { animation-delay: 0.4s; }
+        .steam-delay-2 { animation-delay: 0.8s; }
+
+        /* Плавное скольжение снизу для мобильного модального окна */
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .mobile-bottom-sheet {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-[#FDFBF7] text-[#3E2723] min-h-screen flex flex-col selection:bg-amber-200">
+
+    <script>
+        // Меню кофе на основе изображения "Гид по кофейным напиткам" (image_6ae83a.jpg)
+        const COFFEE_MENU = [
+            { id: 'espresso', name: 'Эспрессо', emoji: '☕', desc: 'Классическая порция ароматного эспрессо.', category: 'classic', ingredients: 'эпрессо', difficulty: 'Быстро' },
+            { id: 'doppio', name: 'Допио', emoji: '☕☕', desc: 'Двойная порция насыщенного эспрессо.', category: 'classic', ingredients: 'двойной эспрессо', difficulty: 'Быстро' },
+            { id: 'lungo', name: 'Лунго', emoji: '🥤', desc: 'Эспрессо с увеличенным объемом воды при варке.', category: 'classic', ingredients: 'вода, эспрессо', difficulty: 'Быстро' },
+            { id: 'ristretto', name: 'Ристретто', emoji: '⚡', desc: 'Эспрессо большей плотности, но менее крепкий по действию.', category: 'classic', ingredients: 'плотный эспрессо', difficulty: 'Быстро' },
+            { id: 'macchiato', name: 'Маккьято', emoji: '🥛', desc: 'Классический эспрессо с ложкой взбитого молока.', category: 'milk', ingredients: 'взбитое молоко, эспрессо', difficulty: 'Средняя' },
+            { id: 'americano', name: 'Американо', emoji: '☕💧', desc: 'Классический эспрессо, разбавленный горячей водой.', category: 'classic', ingredients: 'вода, эспрессо', difficulty: 'Быстро' },
+            { id: 'cream', name: 'Со сливками', emoji: '🍨', desc: 'Насыщенный эспрессо под нежной шапочкой взбитых сливок.', category: 'sweet', ingredients: 'взбитые сливки, эспрессо', difficulty: 'Средняя' },
+            { id: 'romano', name: 'По-римски', emoji: '🍋', desc: 'Удивительное сочетание крепкого эспрессо с долькой свежего лимона.', category: 'classic', ingredients: 'лимон, эспрессо', difficulty: 'Быстро' },
+            { id: 'cappuccino', name: 'Капучино', emoji: '🧁', desc: 'Идеальный кофейный баланс: эспрессо, кипяченое и нежное взбитое молоко.', category: 'milk', ingredients: 'взбитое молоко, кипяченое молоко, эспрессо', difficulty: 'Средняя' },
+            { id: 'latte', name: 'Латте', emoji: '🥛☕', desc: 'Очень мягкий молочный вкус со слоем деликатного эспрессо.', category: 'milk', ingredients: 'взбитое молоко, кипяченое молоко, эспрессо', difficulty: 'Средняя' },
+            { id: 'flat-white', name: 'Флэт уайт', emoji: '☕🥛', desc: 'Более кофейный молочный напиток на основе двойного эспрессо.', category: 'milk', ingredients: 'кипяченое молоко, эспрессо', difficulty: 'Средняя' },
+            { id: 'breve', name: 'Бреве', emoji: '🍪', desc: 'Сливочно-кофейное удовольствие из эспрессо, молока и 10% сливок.', category: 'milk', ingredients: 'взбитое молоко, 10% сливки, эспрессо', difficulty: 'Сложная' },
+            { id: 'marocchino', name: 'Мароккино', emoji: '🍫', desc: 'Изысканный десертный кофе с какао, шоколадом и взбитым молоком.', category: 'sweet', ingredients: 'взбитое молоко, шоколад, эспрессо', difficulty: 'Сложная' },
+            { id: 'mocha', name: 'Мокко', emoji: '🍩', desc: 'Многослойный кофейно-шоколадный напиток со сливками.', category: 'sweet', ingredients: 'взбитые сливки, кипяченое молоко, шоколад, эспрессо', difficulty: 'Сложная' },
+            { id: 'bicerin', name: 'Бичерин', emoji: '🍮', desc: 'Легендарный итальянский напиток с темным и белым шоколадом.', category: 'sweet', ingredients: 'взбитые сливки, темный шоколад, белый шоколад, эспрессо', difficulty: 'Сложная' },
+            { id: 'latte-macchiato', name: 'Латте маккьято', emoji: '🥛✨', desc: 'Красивый трехслойный нежный напиток со взбитой молочной пенкой.', category: 'milk', ingredients: 'взбитое молоко, эспрессо, кипяченое молоко', difficulty: 'Средняя' },
+            { id: 'raf', name: 'Кофе раф', emoji: '🍯', desc: 'Шелковистый сливочный кофе, взбитый с ванильным сахаром.', category: 'sweet', ingredients: 'сливки, ванильный сахар, эспрессо', difficulty: 'Средняя' },
+            { id: 'honey-raf', name: 'Медовый раф', emoji: '🐝', desc: 'Сливочный кофе, взбитый с натуральным ароматным мёдом.', category: 'sweet', ingredients: 'сливки, мёд, эспрессо', difficulty: 'Средняя' },
+            { id: 'vienna', name: 'По-венски', emoji: '🎻', desc: 'Черный кофе, декорированный аппетитной шапочкой взбитых сливок.', category: 'sweet', ingredients: 'взбитые сливки, эспрессо', difficulty: 'Средняя' },
+            { id: 'irish', name: 'По-ирландски', emoji: '🍀', desc: 'Плотный бодрящий коктейль с виски, эспрессо и нежными сливками.', category: 'sweet', ingredients: 'взбитые сливки, виски, эспрессо', difficulty: 'Сложная' },
+            { id: 'glace', name: 'Гляссе', emoji: '🍦', desc: 'Десертный эспрессо с шариком сливочного мороженого сверху.', category: 'sweet', ingredients: 'мороженое, эспрессо', difficulty: 'Сложная' },
+            { id: 'frappe', name: 'Фраппе', emoji: '🌪️', desc: 'Освежающий густой взбитый кофе с молоком и мороженым.', category: 'cold', ingredients: 'мороженое, кипяченое молоко, эспрессо', difficulty: 'Сложная' },
+            { id: 'freddo', name: 'Фреддо', emoji: '🧊🍹', desc: 'Холодный кофейный напиток с кубиками льда и ликёром.', category: 'cold', ingredients: 'лёд, ликёр, эспрессо', difficulty: 'Сложная' },
+            { id: 'caramel-frappe', name: 'Карамельный фраппе', emoji: '🍮❄️', desc: 'Ледяное карамельное безумие со взбитыми сливками и сиропом.', category: 'cold', ingredients: 'взбитые сливки, сироп, лёд, кипяченое молоко, эспрессо', difficulty: 'Сложная' },
+            { id: 'cappuccino-freddo', name: 'Капучино фреддо', emoji: '🥛❄', desc: 'Охлажденный воздушный капучино со льдом и сливками.', category: 'cold', ingredients: 'взбитые сливки, лёд, кипячёное молоко, эспрессо', difficulty: 'Средняя' },
+            { id: 'espresso-lacino', name: 'Эспрессо лачино', emoji: '🧊☕', desc: 'Экстремально освежающий крепкий эспрессо со льдом.', category: 'cold', ingredients: 'лёд, эспрессо', difficulty: 'Быстро' }
+        ];
+
+        // Глобальное состояние
+        let state = {
+            currentUser: null, // { name: 'Серёжа', role: 'parent', key: 'sergei' } или svetlana / david
+            orders: [
+                {
+                    id: 1,
+                    client: 'Светлана',
+                    coffee: 'Капучино',
+                    sugar: '1 ложка',
+                    milk: 'Кокосовое',
+                    strength: 'Средний',
+                    status: 'completed',
+                    time: '12:30'
+                }
+            ],
+            telegramConfig: {
+                token: '8956614332:AAE73Td_3vb6je6l-Y-B2dBdq_tICUQqwRk',
+                chatId: ''
+            },
+            activeDetailsCoffee: null,
+            activeCategory: 'all',
+            searchQuery: ''
+        };
+
+        // Инициализация звука через Web Audio API
+        let audioCtx = null;
+        function playNotificationSound() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const playTone = (freq, duration, delay) => {
+                    setTimeout(() => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                        
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                        
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + duration);
+                    }, delay);
+                };
+                
+                playTone(587.33, 0.4, 0); // Нота Ре
+                playTone(880, 0.6, 120);    // Нота Ля
+            } catch (e) {
+                console.log("Звук заблокирован политикой браузера", e);
+            }
+        }
+
+        // Легкая тактильная вибрация (для мобильных телефонов Android)
+        function triggerHaptic() {
+            if (navigator.vibrate) {
+                navigator.vibrate(40);
+            }
+        }
+    </script>
+
+    <div id="toast-container" class="fixed top-4 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 z-50 transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
+        <div id="toast-card" class="bg-amber-900 text-amber-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-amber-700/60">
+            <span id="toast-icon" class="text-xl">✨</span>
+            <span id="toast-text" class="text-sm font-medium leading-tight">Приветствуем!</span>
+        </div>
+    </div>
+
+    <script>
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const card = document.getElementById('toast-card');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-text');
+
+            text.innerText = message;
+            
+            if (type === 'success') {
+                icon.innerText = '☕';
+                card.className = 'bg-amber-950 text-amber-50 px-5 py-3.5 rounded-2xl shadow-2xl flex items-center space-x-3 border border-amber-800/80';
+            } else if (type === 'warning') {
+                icon.innerText = '⚠️';
+                card.className = 'bg-red-950 text-red-50 px-5 py-3.5 rounded-2xl shadow-2xl flex items-center space-x-3 border border-red-800/80';
+            } else {
+                icon.innerText = '🔔';
+                card.className = 'bg-zinc-900 text-zinc-50 px-5 py-3.5 rounded-2xl shadow-2xl flex items-center space-x-3 border border-zinc-800';
+            }
+
+            container.classList.remove('-translate-y-24', 'opacity-0', 'pointer-events-none');
+            container.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                container.classList.add('-translate-y-24', 'opacity-0', 'pointer-events-none');
+                container.classList.remove('translate-y-0', 'opacity-100');
+            }, 3500);
+        }
+    </script>
+
+    <header class="bg-white border-b border-amber-100 py-3.5 px-4 sticky top-0 z-40 shadow-sm flex justify-between items-center">
+        <div class="flex items-center space-x-2.5">
+            <div class="relative w-9 h-9 bg-amber-850 rounded-full flex items-center justify-center text-lg shadow-inner">
+                <span>☕</span>
+                <div class="absolute -top-1 left-1.5 w-0.5 h-2.5 bg-white/60 rounded-full steam-line"></div>
+                <div class="absolute -top-1.5 left-3 w-0.5 h-2.5 bg-white/50 rounded-full steam-line steam-delay-1"></div>
+                <div class="absolute -top-1 left-4.5 w-0.5 h-2.5 bg-white/60 rounded-full steam-line steam-delay-2"></div>
+            </div>
+            <div>
+                <h1 class="serif-title font-bold text-md text-amber-900 tracking-wide">Kurbanov Coffee</h1>
+                <p class="text-[9px] text-amber-600 font-mono tracking-wider uppercase">Семейный Кофе-Сервис</p>
+            </div>
+        </div>
+
+        <div id="user-badge" class="hidden flex items-center space-x-3">
+            <span class="text-xs bg-amber-100/70 text-amber-900 px-3 py-1.5 rounded-xl font-bold" id="badge-name"></span>
+            <button onclick="triggerHaptic(); logout()" class="text-xs text-red-700 font-bold hover:underline py-1 px-2">Выйти</button>
+        </div>
+    </header>
+
+    <main id="view-login" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-amber-100/60 max-w-sm w-full relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-amber-100/30 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-100/30 rounded-full blur-2xl"></div>
+
+            <div class="text-center mb-6">
+                <span class="text-4xl">🥯</span>
+                <h2 class="serif-title text-xl font-bold text-amber-900 mt-2">Добро пожаловать!</h2>
+                <p class="text-xs text-amber-700/80 mt-1">Пожалуйста, войдите, чтобы заказать кофе или открыть панель приготовления.</p>
+            </div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4 relative z-10">
+                <div>
+                    <label class="block text-xs font-bold text-amber-900 uppercase tracking-wider mb-1.5">Кто Вы?</label>
+                    <select id="login-username" class="w-full bg-amber-50/50 border border-amber-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all text-amber-900 font-medium">
+                        <option value="сережа">Серёжа</option>
+                        <option value="светлана">Светлана</option>
+                        <option value="давид">Давид (Бариста)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-amber-900 uppercase tracking-wider mb-1.5">Пароль:</label>
+                    <input type="password" id="login-password" required placeholder="Введите секретный пароль" class="w-full bg-amber-50/50 border border-amber-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all text-amber-900" />
+                    <p class="text-[10px] text-amber-600/85 mt-1.5 font-medium leading-relaxed">Подсказка: сережа0, светлана0, davidik0535</p>
+                </div>
+
+                <button type="submit" onclick="triggerHaptic()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 transform active:scale-[0.98] mt-2">
+                    Войти в систему 🚀
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <main id="view-parent" class="hidden flex-grow max-w-4xl w-full mx-auto px-4 py-4">
+        <div class="text-center mb-5">
+            <h2 class="serif-title text-2xl font-bold text-amber-900">Кофейная Карта 📋</h2>
+            <p class="text-xs text-amber-700/80 mt-1">Выберите кофе из списка, настройте его рецепт, и Давид сразу же получит заказ!</p>
+        </div>
+
+        <!-- Поиск и категории -->
+        <div class="mb-6 space-y-3">
+            <div class="relative max-w-md mx-auto">
+                <input type="text" id="menu-search" oninput="handleSearch(this.value)" placeholder="Поиск (Раф, Капучино, Фреддо)..." class="w-full bg-white border border-amber-200 rounded-2xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-amber-900 shadow-sm" />
+                <span class="absolute left-3.5 top-3 text-amber-600 text-sm">🔍</span>
+            </div>
+
+            <!-- Фильтры категорий -->
+            <div class="flex flex-wrap justify-center gap-1.5" id="category-filters">
+                <button onclick="triggerHaptic(); filterCategory('all')" class="cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-amber-800 text-white border-amber-800">Все напитки</button>
+                <button onclick="triggerHaptic(); filterCategory('classic')" class="cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-white text-amber-900 border-amber-200 hover:bg-amber-50">☕ Классика</button>
+                <button onclick="triggerHaptic(); filterCategory('milk')" class="cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-white text-amber-900 border-amber-200 hover:bg-amber-50">🥛 С молоком</button>
+                <button onclick="triggerHaptic(); filterCategory('sweet')" class="cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-white text-amber-900 border-amber-200 hover:bg-amber-50">🍰 Сладкие</button>
+                <button onclick="triggerHaptic(); filterCategory('cold')" class="cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-white text-amber-900 border-amber-200 hover:bg-amber-50">🧊 Холодные</button>
+            </div>
+        </div>
+
+        <!-- Сетка с кофе -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="coffee-list-container">
+            <!-- Заполняется динамически -->
+        </div>
+
+        <!-- Раздел с личной историей заказов за сессию -->
+        <div class="mt-8 bg-white border border-amber-100 rounded-2xl p-4 shadow-sm">
+            <h3 class="serif-title text-sm font-bold text-amber-900 mb-3 flex items-center space-x-2">
+                <span>⏱️ Ваши заказы сегодня:</span>
+            </h3>
+            <div id="parent-history-list" class="space-y-2">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-customizer" class="hidden fixed inset-0 z-50 bg-[#3E2723]/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+        <!-- На мобильных это Bottom Sheet (выезжает снизу), на ПК — центрированное модальное окно -->
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-amber-100 mobile-bottom-sheet sm:mb-0 max-h-[92vh] flex flex-col">
+            
+            <!-- Шапка окна/слайдера -->
+            <div class="bg-amber-900 text-white p-5 relative shrink-0">
+                <span id="modal-emoji" class="text-4xl absolute -bottom-4 right-5 bg-white p-2 rounded-2xl shadow-md border border-amber-100">☕</span>
+                <h3 id="modal-title" class="serif-title text-xl font-bold">Название Кофе</h3>
+                <p id="modal-difficulty" class="text-[9px] text-amber-200 uppercase tracking-widest mt-0.5">Сложность приготовления</p>
+            </div>
+
+            <!-- Прокручиваемый контент настроек (удобно для небольших экранов смартфонов) -->
+            <div class="p-5 space-y-4 overflow-y-auto flex-grow">
+                <div>
+                    <p id="modal-desc" class="text-xs text-amber-800/80 leading-relaxed">Описание рецепта</p>
+                    <p class="text-[10px] font-mono text-amber-600 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100/50">
+                        🥛 <strong>Ингредиенты:</strong> <span id="modal-ingredients">ингредиенты</span>
+                    </p>
+                </div>
+
+                <!-- Выбор Сахара -->
+                <div>
+                    <label class="block text-[10px] font-bold text-amber-950 uppercase tracking-widest mb-1.5 flex justify-between">
+                        <span>Сахар (ложечки):</span>
+                        <span id="sugar-val" class="text-amber-700">1 ложка</span>
+                    </label>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button onclick="triggerHaptic(); setSugar(0)" class="sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200">0</button>
+                        <button onclick="triggerHaptic(); setSugar(1)" class="sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-800 text-white border border-amber-800">1</button>
+                        <button onclick="triggerHaptic(); setSugar(2)" class="sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200">2</button>
+                        <button onclick="triggerHaptic(); setSugar(3)" class="sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200">3</button>
+                    </div>
+                </div>
+
+                <!-- Выбор Молока -->
+                <div>
+                    <label class="block text-[10px] font-bold text-amber-950 uppercase tracking-widest mb-1.5">Выбор молока:</label>
+                    <select id="milk-select" class="w-full bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-amber-900 font-medium">
+                        <option value="Обычное">Обычное коровье</option>
+                        <option value="Кокосовое">🥥 Кокосовое</option>
+                        <option value="Миндальное">🌰 Миндальное</option>
+                        <option value="Овсяное">🌾 Овсяное</option>
+                        <option value="Без молока">❌ Без добавления молока</option>
+                    </select>
+                </div>
+
+                <!-- Выбор Крепости -->
+                <div>
+                    <label class="block text-[10px] font-bold text-amber-950 uppercase tracking-widest mb-1.5">Крепость:</label>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button onclick="triggerHaptic(); setStrength('Мягкий')" class="strength-btn py-2 text-xs font-bold rounded-lg bg-amber-50 border border-amber-200 text-amber-900">Мягкий</button>
+                        <button onclick="triggerHaptic(); setStrength('Классик')" class="strength-btn py-2 text-xs font-bold rounded-lg bg-amber-800 text-white border border-amber-800">Классик</button>
+                        <button onclick="triggerHaptic(); setStrength('Крепкий')" class="strength-btn py-2 text-xs font-bold rounded-lg bg-amber-50 border border-amber-200 text-amber-900">Крепкий</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <div class="bg-amber-50 px-5 py-3.5 flex space-x-2 border-t border-amber-100 shrink-0">
+                <button onclick="triggerHaptic(); closeCustomizer()" class="flex-1 bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 py-3 rounded-xl text-xs font-bold transition">
+                    Отмена
+                </button>
+                <button onclick="triggerHaptic(); confirmOrder()" class="flex-1 bg-amber-800 hover:bg-amber-900 text-white py-3 rounded-xl text-xs font-bold shadow-md transition transform active:scale-[0.97]">
+                    Отправить Давиду 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main id="view-barista" class="hidden flex-grow max-w-5xl w-full mx-auto px-4 py-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            
+            <!-- Очередь активных заказов -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-white border border-amber-100 rounded-2xl p-4 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 class="serif-title text-lg font-bold text-amber-900">Очередь Заказов 🥞</h2>
+                            <p class="text-[10px] text-amber-700/80">Поступающие заказы родителей в реальном времени.</p>
+                        </div>
+                        <span id="order-count-badge" class="bg-amber-800 text-white font-mono font-bold text-[10px] px-2.5 py-1.5 rounded-full">0 заказов</span>
+                    </div>
+
+                    <div id="barista-orders-container" class="space-y-3">
+                        <!-- Динамические карточки заказов -->
+                    </div>
+                </div>
+
+                <!-- Выполненные сегодня заказы -->
+                <div class="bg-white/80 border border-zinc-200/60 rounded-2xl p-4 shadow-sm">
+                    <h3 class="serif-title text-sm font-bold text-zinc-700 mb-3">Готово за сессию:</h3>
+                    <div id="barista-history-container" class="space-y-2">
+                        <!-- Карточки выполненных -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: Настройки Telegram и статистика -->
+            <div class="space-y-4">
+                <!-- Статистика -->
+                <div class="bg-amber-900 text-amber-50 rounded-2xl p-4 shadow-md relative overflow-hidden">
+                    <div class="absolute -right-6 -bottom-6 text-7xl opacity-10">☕</div>
+                    <h3 class="serif-title text-sm font-bold mb-3">Статистика Кофейни 📊</h3>
+                    
+                    <div class="space-y-2.5">
+                        <div class="flex justify-between items-center border-b border-amber-800/60 pb-1.5">
+                            <span class="text-[10px] text-amber-200/90">Всего сварено:</span>
+                            <span id="stat-total" class="font-mono font-bold text-sm text-amber-100">0</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-amber-800/60 pb-1.5">
+                            <span class="text-[10px] text-amber-200/90">Любимый кофе Светланы:</span>
+                            <span id="stat-mom-fav" class="font-bold text-[10px] text-amber-100">Пока пусто</span>
+                        </div>
+                        <div class="flex justify-between items-center pb-0.5">
+                            <span class="text-[10px] text-amber-200/90">Любимый кофе Серёжи:</span>
+                            <span id="stat-dad-fav" class="font-bold text-[10px] text-amber-100">Пока пусто</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Настройки интеграции с Telegram -->
+                <div class="bg-white border border-amber-100 rounded-2xl p-4 shadow-sm space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg">✈️</span>
+                        <h3 class="serif-title text-sm font-bold text-amber-900">Уведомления на телефон</h3>
+                    </div>
+                    <p class="text-[10px] text-amber-700/80 leading-relaxed">
+                        Свяжи этот сайт со своим Telegram-ботом, чтобы заказы родителей мгновенно прилетали тебе на телефон!
+                    </p>
+
+                    <div class="space-y-2.5">
+                        <div>
+                            <label class="block text-[9px] font-bold text-amber-950 uppercase tracking-wider mb-1">1. Токен бота:</label>
+                            <input type="password" id="tg-token" placeholder="Токен твоего бота" class="w-full bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-amber-900 font-mono" />
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-amber-950 uppercase tracking-wider mb-1">2. Твой Chat ID:</label>
+                            <div class="flex space-x-1.5">
+                                <input type="text" id="tg-chat-id" placeholder="Твой персональный ID" class="flex-grow bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-amber-900 font-mono" />
+                                <button onclick="triggerHaptic(); detectChatId()" class="bg-amber-100 hover:bg-amber-200 text-amber-950 px-3 rounded-xl text-[9px] font-bold border border-amber-300 transition-all flex items-center shrink-0">
+                                    <span>Узнать ID ✨</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="triggerHaptic(); saveTelegramSettings()" class="w-full bg-amber-800 hover:bg-amber-900 text-white py-2 rounded-xl text-xs font-bold transition">
+                            Сохранить настройки
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Симулятор тестирования -->
+                <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200/50 space-y-2.5">
+                    <h4 class="text-[10px] font-bold text-amber-900 uppercase tracking-wider">🧪 Симулятор заказов:</h4>
+                    <p class="text-[10px] text-amber-700/85 leading-relaxed">Нажмите кнопку, чтобы отправить тестовый заказ для проверки работы Telegram-бота и колокольчика:</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="triggerHaptic(); generateMockOrder('Светлана')" class="bg-white hover:bg-amber-100/50 py-1.5 px-2 rounded-lg text-[9px] font-bold border border-amber-200 transition">От Светланы</button>
+                        <button onclick="triggerHaptic(); generateMockOrder('Серёжа')" class="bg-white hover:bg-amber-100/50 py-1.5 px-2 rounded-lg text-[9px] font-bold border border-amber-200 transition">От Серёжи</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.addEventListener('load', () => {
+            loadCredentials();
+            renderApp();
+        });
+
+        // Загрузка сохраненных настроек Telegram из localStorage
+        function loadCredentials() {
+            // Подставляем токен созданного пользователем бота
+            const token = localStorage.getItem('kv_tg_token') || '8956614332:AAE73Td_3vb6je6l-Y-B2dBdq_tICUQqwRk';
+            const chatId = localStorage.getItem('kv_tg_chat') || '';
+            state.telegramConfig.token = token;
+            state.telegramConfig.chatId = chatId;
+            
+            document.getElementById('tg-token').value = token;
+            document.getElementById('tg-chat-id').value = chatId;
+        }
+
+        // Сохранение настроек Telegram
+        function saveTelegramSettings() {
+            const token = document.getElementById('tg-token').value.trim();
+            const chatId = document.getElementById('tg-chat-id').value.trim();
+
+            state.telegramConfig.token = token;
+            state.telegramConfig.chatId = chatId;
+
+            localStorage.setItem('kv_tg_token', token);
+            localStorage.setItem('kv_tg_chat', chatId);
+
+            showNotification('Настройки Telegram сохранены!', 'success');
+        }
+
+        // Автоматическое нахождение Chat ID по сообщениям
+        async function detectChatId() {
+            const token = document.getElementById('tg-token').value.trim();
+            if (!token) {
+                showNotification('Сначала введите токен бота!', 'warning');
+                return;
+            }
+            
+            showNotification('Ищу ваше сообщение боту...', 'info');
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+                const data = await response.json();
+                
+                if (data.ok && data.result && data.result.length > 0) {
+                    const lastUpdate = data.result[data.result.length - 1];
+                    const message = lastUpdate.message || lastUpdate.edited_message;
+                    
+                    if (message && message.chat) {
+                        const chatId = message.chat.id;
+                        const name = message.chat.first_name || 'Пользователь';
+                        
+                        document.getElementById('tg-chat-id').value = chatId;
+                        state.telegramConfig.chatId = String(chatId);
+                        
+                        showNotification(`Найдено! Пользователь: ${name} (ID: ${chatId})`, 'success');
+                        return;
+                    }
+                }
+                showNotification('Сообщений не обнаружено. Напишите боту что-нибудь в Telegram и повторите!', 'warning');
+            } catch (err) {
+                console.error(err);
+                showNotification('Ошибка связи. Проверьте правильность токена.', 'warning');
+            }
+        }
+
+        // Авторизация
+        function handleLoginSubmit(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const pass = document.getElementById('login-password').value.trim();
+
+            if (username === 'сережа' && pass === 'сережа0') {
+                state.currentUser = { name: 'Серёжа', role: 'parent', key: 'sergei' };
+            } else if (username === 'светлана' && pass === 'светлана0') {
+                state.currentUser = { name: 'Светлана', role: 'parent', key: 'svetlana' };
+            } else if (username === 'давид' && pass === 'davidik0535') {
+                state.currentUser = { name: 'Давид', role: 'barista', key: 'david' };
+            } else {
+                showNotification('Неверный пароль! Проверьте подсказку.', 'warning');
+                return;
+            }
+
+            document.getElementById('login-password').value = '';
+            showNotification(`Приветствуем, ${state.currentUser.name}! ✨`, 'success');
+            renderApp();
+        }
+
+        // Выход
+        function logout() {
+            state.currentUser = null;
+            renderApp();
+        }
+
+        // Обновление представлений
+        function renderApp() {
+            const viewLogin = document.getElementById('view-login');
+            const viewParent = document.getElementById('view-parent');
+            const viewBarista = document.getElementById('view-barista');
+            const userBadge = document.getElementById('user-badge');
+            const badgeName = document.getElementById('badge-name');
+
+            viewLogin.classList.add('hidden');
+            viewParent.classList.add('hidden');
+            viewBarista.classList.add('hidden');
+            userBadge.classList.add('hidden');
+
+            if (!state.currentUser) {
+                viewLogin.classList.remove('hidden');
+                return;
+            }
+
+            userBadge.classList.remove('hidden');
+            badgeName.innerText = state.currentUser.name;
+
+            if (state.currentUser.role === 'parent') {
+                viewParent.classList.remove('hidden');
+                renderParentMenu();
+                renderParentHistory();
+            } else if (state.currentUser.role === 'barista') {
+                viewBarista.classList.remove('hidden');
+                renderBaristaPanel();
+                renderStatistics();
+            }
+        }
+    </script>
+
+    <script>
+        function handleSearch(query) {
+            state.searchQuery = query.toLowerCase();
+            renderParentMenu();
+        }
+
+        function filterCategory(cat) {
+            state.activeCategory = cat;
+            
+            const buttons = document.querySelectorAll('.cat-btn');
+            buttons.forEach(btn => {
+                btn.className = "cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-white text-amber-900 border-amber-200 hover:bg-amber-50";
+            });
+
+            event.target.className = "cat-btn px-3 py-1.5 rounded-full text-[10px] font-bold border transition bg-amber-800 text-white border-amber-800";
+            
+            renderParentMenu();
+        }
+
+        function renderParentMenu() {
+            const container = document.getElementById('coffee-list-container');
+            container.innerHTML = '';
+
+            const filteredMenu = COFFEE_MENU.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(state.searchQuery) || item.ingredients.toLowerCase().includes(state.searchQuery);
+                const matchesCategory = (state.activeCategory === 'all') || (item.category === state.activeCategory);
+                return matchesSearch && matchesCategory;
+            });
+
+            if (filteredMenu.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-8 text-amber-800/60 italic text-xs">
+                        Напитков не найдено. Попробуйте ввести другое слово!
+                    </div>
+                `;
+                return;
+            }
+
+            filteredMenu.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-amber-100 hover:border-amber-200 rounded-3xl p-5 shadow-xs flex flex-col justify-between transform transition-all active:scale-[0.98]";
+                
+                card.innerHTML = `
+                    <div class="space-y-2.5">
+                        <div class="flex justify-between items-start">
+                            <span class="text-3xl">${item.emoji}</span>
+                            <span class="text-[9px] bg-amber-50 text-amber-800 border border-amber-150 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">${item.difficulty}</span>
+                        </div>
+                        <div>
+                            <h3 class="serif-title text-base font-bold text-amber-950">${item.name}</h3>
+                            <p class="text-[10px] font-mono text-amber-600/90 mt-0.5 leading-relaxed">Состав: ${item.ingredients}</p>
+                            <p class="text-xs text-amber-800/70 leading-relaxed mt-1">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="triggerHaptic(); openCustomizer('${item.id}')" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-2.5 rounded-xl text-xs transition duration-200 shadow-sm flex items-center justify-center space-x-2">
+                            <span>Настроить и Заказать ☕</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderParentHistory() {
+            const container = document.getElementById('parent-history-list');
+            container.innerHTML = '';
+
+            const myOrders = state.orders.filter(o => o.client === state.currentUser.name);
+
+            if (myOrders.length === 0) {
+                container.innerHTML = `<p class="text-xs text-amber-800/60 italic text-center py-3">Вы сегодня ещё не заказывали кофе.</p>`;
+                return;
+            }
+
+            myOrders.forEach(order => {
+                let statusLabel = '';
+                if (order.status === 'pending') {
+                    statusLabel = `<span class="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-[9px] font-bold">Ждет Давида ⏳</span>`;
+                } else if (order.status === 'cooking') {
+                    statusLabel = `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full text-[9px] font-bold animate-pulse">Давид готовит... ♨️</span>`;
+                } else if (order.status === 'completed') {
+                    statusLabel = `<span class="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-[9px] font-bold">Уже несёт вам! 🚀</span>`;
+                }
+
+                const item = document.createElement('div');
+                item.className = "flex justify-between items-center p-3 bg-white rounded-xl border border-amber-100/60 text-xs";
+                item.innerHTML = `
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-[9px] text-amber-600 font-mono font-bold">${order.time}</span>
+                            <span class="font-bold text-amber-900 text-xs">${order.coffee}</span>
+                        </div>
+                        <p class="text-[10px] text-amber-700/80 mt-0.5">${order.milk} молоко, ${order.sugar}, ${order.strength} кофе.</p>
+                    </div>
+                    <div>${statusLabel}</div>
+                `;
+                container.appendChild(item);
+            });
+        }
+    </script>
+
+    <script>
+        let activeCustomizations = {
+            sugar: 1,
+            strength: 'Классик'
+        };
+
+        function openCustomizer(coffeeId) {
+            const coffee = COFFEE_MENU.find(c => c.id === coffeeId);
+            if (!coffee) return;
+
+            state.activeDetailsCoffee = coffee;
+            activeCustomizations = { sugar: 1, strength: 'Классик' };
+
+            document.getElementById('modal-title').innerText = coffee.name;
+            document.getElementById('modal-emoji').innerText = coffee.emoji;
+            document.getElementById('modal-desc').innerText = coffee.desc;
+            document.getElementById('modal-ingredients').innerText = coffee.ingredients;
+            document.getElementById('modal-difficulty').innerText = 'Сложность: ' + coffee.difficulty;
+            document.getElementById('milk-select').value = 'Обычное';
+
+            updateCustomizerUI();
+
+            const modal = document.getElementById('modal-customizer');
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomizer() {
+            document.getElementById('modal-customizer').classList.add('hidden');
+            state.activeDetailsCoffee = null;
+        }
+
+        function setSugar(amount) {
+            activeCustomizations.sugar = amount;
+            updateCustomizerUI();
+        }
+
+        function setStrength(strength) {
+            activeCustomizations.strength = strength;
+            updateCustomizerUI();
+        }
+
+        function updateCustomizerUI() {
+            const sugarBtns = document.querySelectorAll('.sugar-btn');
+            sugarBtns.forEach((btn, idx) => {
+                if (idx === activeCustomizations.sugar) {
+                    btn.className = "sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-800 text-white border border-amber-800 transition";
+                } else {
+                    btn.className = "sugar-btn py-2 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-900 transition";
+                }
+            });
+
+            const labelText = activeCustomizations.sugar === 0 ? 'Без сахара ❌' : `${activeCustomizations.sugar} ложечка(-и) 🥄`;
+            document.getElementById('sugar-val').innerText = labelText;
+
+            const strengthBtns = document.querySelectorAll('.strength-btn');
+            strengthBtns.forEach(btn => {
+                if (btn.innerText === activeCustomizations.strength) {
+                    btn.className = "strength-btn py-2 text-xs font-bold rounded-lg bg-amber-800 text-white border border-amber-800 transition";
+                } else {
+                    btn.className = "strength-btn py-2 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200 text-amber-900 transition";
+                }
+            });
+        }
+    </script>
+
+    <script>
+        async function sendTelegramAlert(messageText) {
+            const token = state.telegramConfig.token;
+            const chatId = state.telegramConfig.chatId;
+
+            if (!token || !chatId) {
+                console.log("Телеграм не привязан. Сообщение пропущено.");
+                return;
+            }
+
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
+            const payload = {
+                chat_id: chatId,
+                text: messageText,
+                parse_mode: 'HTML'
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const resData = await response.json();
+                if (resData.ok) {
+                    console.log("Уведомление отправлено на телефон!");
+                } else {
+                    console.warn("Ошибка Bot API:", resData.description);
+                }
+            } catch (err) {
+                console.error("Сетевая ошибка при связи с Telegram:", err);
+            }
+        }
+
+        function confirmOrder() {
+            if (!state.activeDetailsCoffee || !state.currentUser) return;
+
+            const milk = document.getElementById('milk-select').value;
+            const sugarStr = activeCustomizations.sugar === 0 ? 'Без сахара' : `${activeCustomizations.sugar} лож. сахара`;
+
+            const newOrder = {
+                id: Date.now(),
+                client: state.currentUser.name,
+                coffee: state.activeDetailsCoffee.name,
+                sugar: sugarStr,
+                milk: milk,
+                strength: activeCustomizations.strength,
+                status: 'pending',
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            state.orders.unshift(newOrder);
+
+            const tgMessage = `🔔 <b>Новый заказ кофе!</b> ☕\n\n👤 Кто заказал: <b>${newOrder.client}</b>\n🥤 Напиток: <b>${newOrder.coffee}</b>\n🐄 Молоко: <b>${newOrder.milk}</b>\n🍬 Сахар: <b>${newOrder.sugar}</b>\n💪 Крепость: <b>${newOrder.strength}</b>\n\n⏱️ Время: <i>${newOrder.time}</i>`;
+            
+            sendTelegramAlert(tgMessage);
+            playNotificationSound();
+
+            closeCustomizer();
+            showNotification(`Заказ на ${newOrder.coffee} отправлен Давиду! 🎉`, 'success');
+            renderApp();
+        }
+    </script>
+
+    <script>
+        function renderBaristaPanel() {
+            const container = document.getElementById('barista-orders-container');
+            const historyContainer = document.getElementById('barista-history-container');
+            const activeOrders = state.orders.filter(o => o.status !== 'completed');
+            const completedOrders = state.orders.filter(o => o.status === 'completed');
+
+            document.getElementById('order-count-badge').innerText = `${activeOrders.length} активных`;
+
+            container.innerHTML = '';
+            if (activeOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-zinc-400 border border-dashed border-zinc-200 rounded-2xl flex flex-col items-center justify-center">
+                        <span class="text-2xl mb-1.5">🏖️</span>
+                        <p class="text-xs font-bold">Очередь пуста!</p>
+                        <p class="text-[9px] text-zinc-400 mt-0.5">Новые заказы появятся здесь мгновенно и раздастся звонок.</p>
+                    </div>
+                `;
+            } else {
+                activeOrders.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = "border border-amber-100 bg-amber-50/20 p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 transition shadow-xs relative overflow-hidden";
+                    
+                    if (order.status === 'cooking') {
+                        card.classList.add('border-amber-400', 'bg-amber-100/10');
+                    }
+
+                    let actionButtons = '';
+                    if (order.status === 'pending') {
+                        actionButtons = `
+                            <button onclick="triggerHaptic(); changeOrderStatus(${order.id}, 'cooking')" class="bg-amber-700 hover:bg-amber-800 text-white text-xs px-3 py-2.5 rounded-xl font-bold transition shadow-sm w-full md:w-auto text-center">
+                                Начать готовить 👨‍🍳
+                            </button>
+                        `;
+                    } else if (order.status === 'cooking') {
+                        actionButtons = `
+                            <button onclick="triggerHaptic(); changeOrderStatus(${order.id}, 'completed')" class="bg-green-700 hover:bg-green-800 text-white text-xs px-3 py-2.5 rounded-xl font-bold transition shadow-sm w-full md:w-auto text-center">
+                                Готово! Несу! 🚀
+                            </button>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <div class="space-y-1 w-full">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-[8px] bg-amber-900 text-white font-mono px-1.5 py-0.5 rounded-md">${order.time}</span>
+                                <span class="text-[10px] text-zinc-500">Заказчик:</span>
+                                <span class="font-bold text-xs text-zinc-900">${order.client}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-amber-950">
+                                «${order.coffee}»
+                            </h4>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="text-[9px] bg-white border border-zinc-200 px-1.5 py-0.5 rounded-md text-zinc-700">🍬 ${order.sugar}</span>
+                                <span class="text-[9px] bg-white border border-zinc-200 px-1.5 py-0.5 rounded-md text-zinc-700">🥛 Молоко: ${order.milk}</span>
+                                <span class="text-[9px] bg-white border border-zinc-200 px-1.5 py-0.5 rounded-md text-zinc-700">💪 ${order.strength}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto border-t md:border-t-0 border-zinc-100 pt-2 md:pt-0">
+                            <span class="text-[10px] font-bold text-center sm:text-right sm:mr-1 ${order.status === 'cooking' ? 'text-amber-600 animate-pulse' : 'text-red-500'}">
+                                ${order.status === 'pending' ? 'Ожидает' : 'Готовится...'}
+                            </span>
+                            ${actionButtons}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            historyContainer.innerHTML = '';
+            if (completedOrders.length === 0) {
+                historyContainer.innerHTML = `<p class="text-[10px] text-zinc-400 italic text-center py-2">Выполненных заказов сегодня нет.</p>`;
+            } else {
+                completedOrders.forEach(order => {
+                    const line = document.createElement('div');
+                    line.className = "flex justify-between items-center text-[10px] p-2.5 bg-zinc-100 rounded-xl text-zinc-600";
+                    line.innerHTML = `
+                        <div>
+                            <span class="font-mono text-[8px] bg-zinc-200 px-1.5 py-0.5 rounded text-zinc-500 mr-1.5">${order.time}</span>
+                            <strong>${order.client}</strong>: <b>${order.coffee}</b>
+                        </div>
+                        <span class="text-green-600 font-bold">✓ Отнесено</span>
+                    `;
+                    historyContainer.appendChild(line);
+                });
+            }
+        }
+
+        function changeOrderStatus(orderId, newStatus) {
+            const order = state.orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            order.status = newStatus;
+
+            if (newStatus === 'completed') {
+                showNotification(`Кофе готов! Относи поскорее! 🍩`, 'success');
+                sendTelegramAlert(`✅ <b>Кофе готов!</b>\n\nДавид уже несёт горячий <b>${order.coffee}</b> для <b>${order.client}</b>! Приятного аппетита! 🍩☕`);
+            } else if (newStatus === 'cooking') {
+                showNotification(`Готовится кофе для ${order.client}`, 'success');
+                sendTelegramAlert(`☕ <b>Начали готовить!</b>\n\nДавид уже заваривает крепкий <b>${order.coffee}</b> для <b>${order.client}</b>.`);
+            }
+
+            renderApp();
+        }
+
+        function renderStatistics() {
+            const total = state.orders.length;
+            document.getElementById('stat-total').innerText = total;
+
+            const momOrders = state.orders.filter(o => o.client === 'Светлана');
+            const dadOrders = state.orders.filter(o => o.client === 'Серёжа');
+
+            const getFavorite = (ordersArray) => {
+                if (ordersArray.length === 0) return 'Пока пусто';
+                const counts = {};
+                ordersArray.forEach(o => counts[o.coffee] = (counts[o.coffee] || 0) + 1);
+                return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+            };
+
+            document.getElementById('stat-mom-fav').innerText = getFavorite(momOrders);
+            document.getElementById('stat-dad-fav').innerText = getFavorite(dadOrders);
+        }
+
+        // Симулятор
+        function generateMockOrder(clientName) {
+            const randomCoffee = COFFEE_MENU[Math.floor(Math.random() * COFFEE_MENU.length)];
+            const milks = ['Обычное', 'Кокосовое', 'Миндальное', 'Овсяное'];
+            const strengths = ['Мягкий', 'Классик', 'Крепкий'];
+            
+            const newOrder = {
+                id: Date.now(),
+                client: clientName,
+                coffee: randomCoffee.name,
+                sugar: `${Math.floor(Math.random() * 4)} лож. сахара`,
+                milk: milks[Math.floor(Math.random() * milks.length)],
+                strength: strengths[Math.floor(Math.random() * strengths.length)],
+                status: 'pending',
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            state.orders.unshift(newOrder);
+
+            const tgMessage = `🔔 <b>ТЕСТОВЫЙ заказ!</b> 🧪\n\n👤 Кто заказал: <b>${newOrder.client}</b>\n🥤 Напиток: <b>${newOrder.coffee}</b>\n🐄 Молоко: <b>${newOrder.milk}</b>\n🍬 Сахар: <b>${newOrder.sugar}</b>\n💪 Крепость: <b>${newOrder.strength}</b>`;
+            sendTelegramAlert(tgMessage);
+
+            playNotificationSound();
+
+            showNotification(`Тестовый заказ от ${clientName} создан!`, 'success');
+            renderApp();
+        }
+    </script>
+</body>
+</html>
