@@ -491,11 +491,12 @@
             
             showNotification('Ищу ваше сообщение боту...', 'info');
 
-            // 4-канальный роутер для поиска ID
+            // Расширенный список прокси для обхода блокировок
             const gateways = [
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.telegram.org/bot${token}/getUpdates`)}`,
+                `https://corsproxy.io/?${encodeURIComponent(`https://api.telegram.org/bot${token}/getUpdates`)}`,
                 `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.telegram.org/bot${token}/getUpdates`)}`,
-                `https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/getUpdates`,
+                `https://thingproxy.freeboard.io/fetch/https://api.telegram.org/bot${token}/getUpdates`,
                 `https://api.telegram.org/bot${token}/getUpdates`
             ];
 
@@ -763,18 +764,12 @@
                 return;
             }
 
-            // Роскошный список резервных обходных CORS-прокси-серверов в РФ!
+            // Расширенный список прокси для обхода блокировок
             const gateways = [
-                // Канал 1: AllOrigins (Абсолютный лидер, никогда не блокируется в РФ)
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`)}`,
-                
-                // Канал 2: CodeTabs (Прекрасный и быстрый альтернативный CORS-шлюз)
+                `https://corsproxy.io/?${encodeURIComponent(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`)}`,
                 `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`)}`,
-                
-                // Канал 3: Вшитый Cloudflare Pages
-                `https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`,
-                
-                // Канал 4: Прямой запрос (если у кого-то из членов семьи включен VPN)
+                `https://thingproxy.freeboard.io/fetch/https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`,
                 `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`
             ];
 
