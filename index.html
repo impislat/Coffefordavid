@@ -300,7 +300,7 @@
                     </div>
                 </div>
 
-                <!-- Выбор Молока -->
+                <!-- Выбор"Молока" -->
                 <div>
                     <label class="block text-[10px] font-bold text-amber-950 uppercase tracking-widest mb-1.5">Выбор молока:</label>
                     <select id="milk-select" class="w-full bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-amber-900 font-medium">
@@ -431,7 +431,7 @@
     </main>
 
     <script>
-        // Общая служебная функция таймаута для борьбы с заблокированным Telegram API в РФ
+        // Общая служебная функция таймаута для борьбы с зависаниями при плохом коннекте
         async function fetchWithTimeout(resource, options = {}) {
             const { timeout = 3000 } = options;
             const controller = new AbortController();
@@ -457,7 +457,7 @@
 
         // Загрузка сохраненных настроек Telegram из localStorage
         function loadCredentials() {
-            // Подставляем токен твоего бота и Chat ID намертво!
+            // Твои токен и Chat ID по умолчанию
             const token = localStorage.getItem('kv_tg_token') || '8956614332:AAE73Td_3vb6je6l-Y-B2dBdq_tICUQqwRk';
             const chatId = localStorage.getItem('kv_tg_chat') || '815974267';
             state.telegramConfig.token = token;
@@ -481,7 +481,7 @@
             showNotification('Настройки Telegram сохранены!', 'success');
         }
 
-        // Автоматическое нахождение Chat ID по сообщениям (с двойным обходом РФ блокировок)
+        // Автоматическое нахождение Chat ID по сообщениям (с обходом блокировок РФ)
         async function detectChatId() {
             const token = document.getElementById('tg-token').value.trim();
             if (!token) {
@@ -490,36 +490,36 @@
             }
             
             showNotification('Ищу ваше сообщение боту...', 'info');
-            let data = null;
 
-            // Сначала пробуем напрямую
-            try {
-                const response = await fetchWithTimeout(`https://api.telegram.org/bot${token}/getUpdates`, { timeout: 3000 });
-                data = await response.json();
-            } catch (err) {
-                console.warn("Прямое подключение заблокировано. Пробуем безопасный прокси без VPN...");
-                // Если напрямую не вышло, пробуем через зеркальный Cloudflare-прокси (всегда работает в РФ!)
+            // 4-канальный роутер для поиска ID
+            const gateways = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.telegram.org/bot${token}/getUpdates`)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.telegram.org/bot${token}/getUpdates`)}`,
+                `https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/getUpdates`,
+                `https://api.telegram.org/bot${token}/getUpdates`
+            ];
+
+            for (let i = 0; i < gateways.length; i++) {
                 try {
-                    const response = await fetchWithTimeout(`https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/getUpdates`, { timeout: 6000 });
-                    data = await response.json();
-                } catch (proxyErr) {
-                    console.error("Оба канала связи Telegram заблокированы.", proxyErr);
-                }
-            }
-            
-            if (data && data.ok && data.result && data.result.length > 0) {
-                const lastUpdate = data.result[data.result.length - 1];
-                const message = lastUpdate.message || lastUpdate.edited_message;
-                
-                if (message && message.chat) {
-                    const chatId = message.chat.id;
-                    const name = message.chat.first_name || 'Пользователь';
-                    
-                    document.getElementById('tg-chat-id').value = chatId;
-                    state.telegramConfig.chatId = String(chatId);
-                    
-                    showNotification(`Найдено! Пользователь: ${name} (ID: ${chatId})`, 'success');
-                    return;
+                    const response = await fetchWithTimeout(gateways[i], { timeout: 3500 });
+                    if (response.ok) {
+                        const text = await response.text();
+                        const data = JSON.parse(text);
+                        if (data.ok && data.result && data.result.length > 0) {
+                            const lastUpdate = data.result[data.result.length - 1];
+                            const message = lastUpdate.message || lastUpdate.edited_message;
+                            if (message && message.chat) {
+                                const chatId = message.chat.id;
+                                const name = message.chat.first_name || 'Пользователь';
+                                document.getElementById('tg-chat-id').value = chatId;
+                                state.telegramConfig.chatId = String(chatId);
+                                showNotification(`Найдено! Пользователь: ${name} (ID: ${chatId})`, 'success');
+                                return;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Канал определения ID ${i+1} не сработал. Пробуем следующий...`);
                 }
             }
             showNotification('Сообщений не обнаружено. Напишите боту что-нибудь в Telegram и повторите!', 'warning');
@@ -763,46 +763,40 @@
                 return;
             }
 
-            const payload = {
-                chat_id: chatId,
-                text: messageText,
-                parse_mode: 'HTML'
-            };
+            // Роскошный список резервных обходных CORS-прокси-серверов в РФ!
+            const gateways = [
+                // Канал 1: AllOrigins (Абсолютный лидер, никогда не блокируется в РФ)
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`)}`,
+                
+                // Канал 2: CodeTabs (Прекрасный и быстрый альтернативный CORS-шлюз)
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`)}`,
+                
+                // Канал 3: Вшитый Cloudflare Pages
+                `https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`,
+                
+                // Канал 4: Прямой запрос (если у кого-то из членов семьи включен VPN)
+                `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(messageText)}&parse_mode=HTML`
+            ];
 
-            // КАНАЛ 1: Пробуем напрямую (если включен VPN)
-            try {
-                const response = await fetchWithTimeout(`https://api.telegram.org/bot${token}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    timeout: 2500 // Быстрый таймаут 2.5 секунды, чтобы не заставлять родителей долго ждать
-                });
-                const resData = await response.json();
-                if (resData.ok) {
-                    console.log("Уведомление отправлено напрямую в Telegram!");
-                    return;
+            for (let i = 0; i < gateways.length; i++) {
+                const url = gateways[i];
+                console.log(`Telegram: попытка через Канал ${i + 1}...`);
+                try {
+                    const response = await fetchWithTimeout(url, {
+                        method: 'GET', // GET-запросы идеально поддерживаются любыми CORS-прокси
+                        timeout: 3000
+                    });
+                    
+                    if (response.ok) {
+                        console.log(`Telegram: успешно отправлено через Канал ${i + 1}!`);
+                        return true;
+                    }
+                } catch (err) {
+                    console.warn(`Telegram: Канал ${i + 1} не ответил или заблокирован.`, err);
                 }
-            } catch (err) {
-                console.warn("Прямое соединение заблокировано или нестабильно. Активируем обходной прокси-канал...");
             }
-
-            // КАНАЛ 2: Пробуем через безопасный зеркальный Cloudflare-прокси (работает в РФ без VPN!)
-            try {
-                const response = await fetchWithTimeout(`https://telegram-api-proxy-anonymous.pages.dev/api/bot${token}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    timeout: 6000
-                });
-                const resData = await response.json();
-                if (resData.ok) {
-                    console.log("Уведомление отправлено через зеркальный обходной шлюз Cloudflare!");
-                } else {
-                    console.warn("Ошибка зеркального Bot API:", resData.description);
-                }
-            } catch (err) {
-                console.error("Критический сбой. Сообщение не отправлено ни по одному каналу связи:", err);
-            }
+            console.error("Telegram: Все каналы обхода блокировок РКН недоступны!");
+            return false;
         }
 
         function confirmOrder() {
