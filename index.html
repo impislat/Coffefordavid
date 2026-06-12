@@ -43,7 +43,7 @@
     <script>
         // Меню кофе на основе изображения "Гид по кофейным напиткам" (image_6ae83a.jpg)
         const COFFEE_MENU = [
-            { id: 'espresso', name: 'Эспрессо', emoji: '☕', desc: 'Классическая порция ароматного эспрессо.', category: 'classic', ingredients: 'эпрессо', difficulty: 'Быстро' },
+            { id: 'espresso', name: 'Эспрессо', emoji: '☕', desc: 'Классическая порция ароматного эспрессо.', category: 'classic', ingredients: 'эспрессо', difficulty: 'Быстро' },
             { id: 'doppio', name: 'Допио', emoji: '☕☕', desc: 'Двойная порция насыщенного эспрессо.', category: 'classic', ingredients: 'двойной эспрессо', difficulty: 'Быстро' },
             { id: 'lungo', name: 'Лунго', emoji: '🥤', desc: 'Эспрессо с увеличенным объемом воды при варке.', category: 'classic', ingredients: 'вода, эспрессо', difficulty: 'Быстро' },
             { id: 'ristretto', name: 'Ристретто', emoji: '⚡', desc: 'Эспрессо большей плотности, но менее крепкий по действию.', category: 'classic', ingredients: 'плотный эспрессо', difficulty: 'Быстро' },
@@ -121,7 +121,7 @@
                     }, delay);
                 };
                 
-                playTone(587.33, 0.4, 0); // Нота Ре
+                playTone(587.33, 0.4, 0); // Нота Ре (колокольчик)
                 playTone(880, 0.6, 120);    // Нота Ля
             } catch (e) {
                 console.log("Звук заблокирован политикой браузера", e);
@@ -134,6 +134,83 @@
                 navigator.vibrate(40);
             }
         }
+    </script>
+
+    <script>
+        // Облачная база данных на бесплатной платформе api.keyval.org
+        const CLOUD_STORAGE_URL = 'https://api.keyval.org/get/kurbanov_coffee_shared_state_v2';
+        const CLOUD_SET_URL = 'https://api.keyval.org/set/kurbanov_coffee_shared_state_v2';
+
+        // Сохранение данных в облако
+        async function saveStateToCloud() {
+            try {
+                // Ограничиваем историю 15 последними заказами, чтобы URL не превышал лимиты
+                if (state.orders.length > 15) {
+                    state.orders = state.orders.slice(0, 15);
+                }
+
+                const cloudData = {
+                    orders: state.orders,
+                    telegramConfig: state.telegramConfig
+                };
+
+                const payload = encodeURIComponent(JSON.stringify(cloudData));
+                await fetch(`${CLOUD_SET_URL}/${payload}`);
+                console.log("Данные успешно синхронизированы с облаком!");
+            } catch (e) {
+                console.warn("Облако временно недоступно. Работаем локально:", e);
+            }
+        }
+
+        // Загрузка данных из облака
+        async function loadStateFromCloud() {
+            try {
+                const response = await fetch(CLOUD_STORAGE_URL);
+                if (response.ok) {
+                    const text = await response.text();
+                    if (text && text.trim() !== '') {
+                        const cloudData = JSON.parse(decodeURIComponent(text));
+                        if (cloudData) {
+                            // Проверяем, появились ли новые необработанные заказы
+                            const oldPendingCount = state.orders.filter(o => o.status === 'pending').length;
+                            const newPendingCount = cloudData.orders ? cloudData.orders.filter(o => o.status === 'pending').length : 0;
+                            
+                            // Если добавился новый заказ, которого раньше не было в памяти
+                            if (newPendingCount > oldPendingCount) {
+                                const hasNewOrder = cloudData.orders.some(o => o.status === 'pending' && !state.orders.some(existing => existing.id === o.id));
+                                if (hasNewOrder) {
+                                    playNotificationSound();
+                                    showNotification('Поступил новый заказ кофе! ☕', 'success');
+                                }
+                            }
+
+                            if (cloudData.orders) state.orders = cloudData.orders;
+                            if (cloudData.telegramConfig) state.telegramConfig = cloudData.telegramConfig;
+
+                            // Обновляем поля ввода настроек Telegram на экране Давида
+                            const tgTokenInput = document.getElementById('tg-token');
+                            const tgChatIdInput = document.getElementById('tg-chat-id');
+                            if (tgTokenInput && tgTokenInput.value !== state.telegramConfig.token) {
+                                tgTokenInput.value = state.telegramConfig.token;
+                            }
+                            if (tgChatIdInput && tgChatIdInput.value !== state.telegramConfig.chatId) {
+                                tgChatIdInput.value = state.telegramConfig.chatId;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("Ошибка загрузки из облака:", e);
+            }
+        }
+
+        // Фоновый радар: опрашиваем базу каждые 5 секунд для мгновенной синхронизации
+        setInterval(async () => {
+            await loadStateFromCloud();
+            if (state.currentUser) {
+                renderApp();
+            }
+        }, 5000);
     </script>
 
     <div id="toast-container" class="fixed top-4 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 z-50 transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
@@ -175,7 +252,7 @@
 
     <header class="bg-white border-b border-amber-100 py-3.5 px-4 sticky top-0 z-40 shadow-sm flex justify-between items-center">
         <div class="flex items-center space-x-2.5">
-            <div class="relative w-9 h-9 bg-amber-850 rounded-full flex items-center justify-center text-lg shadow-inner">
+            <div class="relative w-9 h-9 bg-amber-800 rounded-full flex items-center justify-center text-lg shadow-inner">
                 <span>☕</span>
                 <div class="absolute -top-1 left-1.5 w-0.5 h-2.5 bg-white/60 rounded-full steam-line"></div>
                 <div class="absolute -top-1.5 left-3 w-0.5 h-2.5 bg-white/50 rounded-full steam-line steam-delay-1"></div>
@@ -431,16 +508,17 @@
     </main>
 
     <script>
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+            // Сначала загружаем данные из облака, чтобы синхронизировать Chat ID на других устройствах!
+            await loadStateFromCloud();
             loadCredentials();
             renderApp();
         });
 
-        // Загрузка сохраненных настроек Telegram из localStorage
+        // Загрузка сохраненных настроек Telegram из localStorage (как резерв)
         function loadCredentials() {
-            // Подставляем токен созданного пользователем бота
-            const token = localStorage.getItem('kv_tg_token') || '8956614332:AAE73Td_3vb6je6l-Y-B2dBdq_tICUQqwRk';
-            const chatId = localStorage.getItem('kv_tg_chat') || '';
+            const token = state.telegramConfig.token || localStorage.getItem('kv_tg_token') || '8956614332:AAE73Td_3vb6je6l-Y-B2dBdq_tICUQqwRk';
+            const chatId = state.telegramConfig.chatId || localStorage.getItem('kv_tg_chat') || '';
             state.telegramConfig.token = token;
             state.telegramConfig.chatId = chatId;
             
@@ -448,8 +526,8 @@
             document.getElementById('tg-chat-id').value = chatId;
         }
 
-        // Сохранение настроек Telegram
-        function saveTelegramSettings() {
+        // Сохранение настроек Telegram в облако и локально
+        async function saveTelegramSettings() {
             const token = document.getElementById('tg-token').value.trim();
             const chatId = document.getElementById('tg-chat-id').value.trim();
 
@@ -459,7 +537,8 @@
             localStorage.setItem('kv_tg_token', token);
             localStorage.setItem('kv_tg_chat', chatId);
 
-            showNotification('Настройки Telegram сохранены!', 'success');
+            showNotification('Настройки Telegram отправлены в облако!', 'success');
+            await saveStateToCloud();
         }
 
         // Автоматическое нахождение Chat ID по сообщениям
@@ -488,6 +567,7 @@
                         state.telegramConfig.chatId = String(chatId);
                         
                         showNotification(`Найдено! Пользователь: ${name} (ID: ${chatId})`, 'success');
+                        await saveStateToCloud();
                         return;
                     }
                 }
@@ -728,11 +808,12 @@
 
     <script>
         async function sendTelegramAlert(messageText) {
+            // Подтягиваем актуальный токен и Chat ID из конфигурации (которые синхронизированы в облаке)
             const token = state.telegramConfig.token;
             const chatId = state.telegramConfig.chatId;
 
             if (!token || !chatId) {
-                console.log("Телеграм не привязан. Сообщение пропущено.");
+                console.warn("Телеграм не привязан. Пропускаем отправку.");
                 return;
             }
 
@@ -752,16 +833,16 @@
                 
                 const resData = await response.json();
                 if (resData.ok) {
-                    console.log("Уведомление отправлено на телефон!");
+                    console.log("Уведомление доставлено в Telegram!");
                 } else {
-                    console.warn("Ошибка Bot API:", resData.description);
+                    console.error("Ошибка Telegram Bot API:", resData.description);
                 }
             } catch (err) {
                 console.error("Сетевая ошибка при связи с Telegram:", err);
             }
         }
 
-        function confirmOrder() {
+        async function confirmOrder() {
             if (!state.activeDetailsCoffee || !state.currentUser) return;
 
             const milk = document.getElementById('milk-select').value;
@@ -780,9 +861,13 @@
 
             state.orders.unshift(newOrder);
 
+            // Сохраняем заказ в облако перед отправкой уведомлений
+            await saveStateToCloud();
+
             const tgMessage = `🔔 <b>Новый заказ кофе!</b> ☕\n\n👤 Кто заказал: <b>${newOrder.client}</b>\n🥤 Напиток: <b>${newOrder.coffee}</b>\n🐄 Молоко: <b>${newOrder.milk}</b>\n🍬 Сахар: <b>${newOrder.sugar}</b>\n💪 Крепость: <b>${newOrder.strength}</b>\n\n⏱️ Время: <i>${newOrder.time}</i>`;
             
-            sendTelegramAlert(tgMessage);
+            // Отправляем пуш (теперь сработает с любого телефона, так как Chat ID скачан из облака!)
+            await sendTelegramAlert(tgMessage);
             playNotificationSound();
 
             closeCustomizer();
@@ -879,7 +964,7 @@
             }
         }
 
-        function changeOrderStatus(orderId, newStatus) {
+        async function changeOrderStatus(orderId, newStatus) {
             const order = state.orders.find(o => o.id === orderId);
             if (!order) return;
 
@@ -887,12 +972,14 @@
 
             if (newStatus === 'completed') {
                 showNotification(`Кофе готов! Относи поскорее! 🍩`, 'success');
-                sendTelegramAlert(`✅ <b>Кофе готов!</b>\n\nДавид уже несёт горячий <b>${order.coffee}</b> для <b>${order.client}</b>! Приятного аппетита! 🍩☕`);
+                await sendTelegramAlert(`✅ <b>Кофе готов!</b>\n\nДавид уже несёт горячий <b>${order.coffee}</b> для <b>${order.client}</b>! Приятного аппетита! 🍩☕`);
             } else if (newStatus === 'cooking') {
                 showNotification(`Готовится кофе для ${order.client}`, 'success');
-                sendTelegramAlert(`☕ <b>Начали готовить!</b>\n\nДавид уже заваривает крепкий <b>${order.coffee}</b> для <b>${order.client}</b>.`);
+                await sendTelegramAlert(`☕ <b>Начали готовить!</b>\n\nДавид уже заваривает крепкий <b>${order.coffee}</b> для <b>${order.client}</b>.`);
             }
 
+            // Синхронизируем изменение статуса с облаком
+            await saveStateToCloud();
             renderApp();
         }
 
@@ -915,7 +1002,7 @@
         }
 
         // Симулятор
-        function generateMockOrder(clientName) {
+        async function generateMockOrder(clientName) {
             const randomCoffee = COFFEE_MENU[Math.floor(Math.random() * COFFEE_MENU.length)];
             const milks = ['Обычное', 'Кокосовое', 'Миндальное', 'Овсяное'];
             const strengths = ['Мягкий', 'Классик', 'Крепкий'];
@@ -933,8 +1020,10 @@
 
             state.orders.unshift(newOrder);
 
+            await saveStateToCloud();
+
             const tgMessage = `🔔 <b>ТЕСТОВЫЙ заказ!</b> 🧪\n\n👤 Кто заказал: <b>${newOrder.client}</b>\n🥤 Напиток: <b>${newOrder.coffee}</b>\n🐄 Молоко: <b>${newOrder.milk}</b>\n🍬 Сахар: <b>${newOrder.sugar}</b>\n💪 Крепость: <b>${newOrder.strength}</b>`;
-            sendTelegramAlert(tgMessage);
+            await sendTelegramAlert(tgMessage);
 
             playNotificationSound();
 
